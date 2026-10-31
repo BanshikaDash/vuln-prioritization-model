@@ -145,3 +145,53 @@ def test_pipeline_end_to_end(monkeypatch, mapper, tmp_path):
     lines = out.read_text().splitlines()
     assert lines[1].split(",")[1] == "CVE-HOT"      # exploited, low CVSS beats quiet 8.1
     assert lines[2].split(",")[1] == "CVE-QUIET"
+
+
+def test_inthewild_file_both_formats(tmp_path):
+    a = tmp_path / "a.txt"
+    a.write_text("CVE-2024-1111\nnot a cve\ncve-2023-2222\n", encoding="utf-8")
+    assert fetchers.load_inthewild_file(str(a)) == {"CVE-2024-1111", "CVE-2023-2222"}
+    b = tmp_path / "b.json"
+    b.write_text('[{"id": "CVE-2024-9999"}]', encoding="utf-8")
+    assert fetchers.load_inthewild_file(str(b)) == {"CVE-2024-9999"}
+
+
+def test_mitre_reads_non_ascii_utf8(tmp_path):
+    capec = {"objects": [{"type": "attack-pattern", "id": "x", "name": "\u201cquoted\u201d",
+                          "external_references": [{"source_name": "capec", "external_id": "CAPEC-1"}]}]}
+    (tmp_path / "c.json").write_text(json.dumps(capec, ensure_ascii=False), encoding="utf-8")
+    (tmp_path / "a.json").write_text(json.dumps({"objects": []}), encoding="utf-8")
+    AdversaryMapper(str(tmp_path / "c.json"), str(tmp_path / "a.json"))
+
+
+def _make_itw_db(path, types):
+    import sqlite3
+    con = sqlite3.connect(path)
+    con.execute("create table exploits (id text, referenceURL text, timeStamp text, source text, type text)")
+    for i, t in enumerate(types):
+        con.execute("insert into exploits values (?,?,?,?,?)", (f"CVE-2024-{1000+i}", "u", "t", "s", t))
+    con.execute("insert into exploits values ('CVE-2024-1000','u2','t','s','exploitation')")  # duplicate id
+    con.commit()
+    con.close()
+
+
+def test_inthewild_db_counts_only_exploitation(tmp_path):
+    p = str(tmp_path / "itw.db")
+    _make_itw_db(p, ["exploitation", "exploit", "exploit"])
+    assert fetchers.load_inthewild_db(p) == {"CVE-2024-1000"}
+
+
+def test_inthewild_db_unknown_types_explains(tmp_path):
+    with pytest.raises(RuntimeError, match="types found"):
+        fetchers.load_inthewild_db(_only_exploit_db(tmp_path))
+
+
+def _only_exploit_db(tmp_path):
+    import sqlite3
+    p = str(tmp_path / "only.db")
+    con = sqlite3.connect(p)
+    con.execute("create table exploits (id text, referenceURL text, timeStamp text, source text, type text)")
+    con.execute("insert into exploits values ('CVE-2024-5','u','t','s','exploit')")
+    con.commit()
+    con.close()
+    return p

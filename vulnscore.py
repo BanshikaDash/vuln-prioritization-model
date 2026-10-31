@@ -171,7 +171,7 @@ def read_csv(path: str) -> list[Vulnerability]:
     cvss_base, n_cpe, n_cwe, n_adversaries, epss, epss_percentile, in_kev,
     in_zdi, exploited_in_wild. Missing columns are treated as empty."""
     out = []
-    with open(path, newline="") as f:
+    with open(path, newline="", encoding="utf-8") as f:
         for row in csv.DictReader(f):
             g = lambda k: row.get(k, "")  # noqa: E731
             out.append(
@@ -206,7 +206,7 @@ def main() -> None:
         print(f"{n:<5}{r.cve_id:<18}{r.score:<14.2f}{r.raw:.3f}")
 
     if args.out:
-        with open(args.out, "w", newline="") as f:
+        with open(args.out, "w", newline="", encoding="utf-8") as f:
             w = csv.writer(f)
             w.writerow(["rank", "cve_id", "score", "raw", *WEIGHTS.keys()])
             for n, r in enumerate(results, 1):

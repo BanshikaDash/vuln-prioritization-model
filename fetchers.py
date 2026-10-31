@@ -14,7 +14,10 @@ part: see load_inthewild().
 """
 from __future__ import annotations
 
+import json
+import os
 import re
+import sqlite3
 import time
 from typing import Optional
 
@@ -150,9 +153,44 @@ def extract_cve_ids(payload) -> set[str]:
 
 
 def load_inthewild() -> set[str]:
-    r = requests.get(ITW_URL, timeout=120, headers={"User-Agent": "vulnscore/1.0"})
+    r = requests.get(ITW_URL, timeout=20, headers={"User-Agent": "vulnscore/1.0"})
     r.raise_for_status()
     ids = extract_cve_ids(r.json())
     if not ids:
         raise RuntimeError("inthewild.io returned no CVE ids; response format may have changed")
     return ids
+
+
+def load_inthewild_file(path: str) -> set[str]:
+    """Same list from a local file: a JSON export, or one CVE id per line."""
+    with open(path, encoding="utf-8") as f:
+        text = f.read()
+    try:
+        ids = extract_cve_ids(json.loads(text))
+    except ValueError:
+        ids = {ln.strip().upper() for ln in text.splitlines() if CVE_RE.match(ln.strip())}
+    if not ids:
+        raise RuntimeError(f"no CVE ids found in {path}")
+    return ids
+
+
+def load_inthewild_db(path: str) -> set[str]:
+    """CVEs with a report of exploitation in the wild, from inthewild.db.
+
+    The database has an `exploits` table (id = CVE, type = kind of report).
+    Rows of type 'exploit' are public exploit code, which is not the same as
+    being exploited, so only 'exploitation' rows are counted.
+    """
+    if not os.path.exists(path):
+        raise FileNotFoundError(path)
+    con = sqlite3.connect(path)
+    try:
+        types = [r[0] for r in con.execute("select distinct type from exploits")]
+        wild = [t for t in types if t and ("exploitation" in t.lower() or "wild" in t.lower())]
+        if not wild:
+            raise RuntimeError(f"no 'exploitation' type in {path}; types found: {types}")
+        marks = ",".join("?" * len(wild))
+        rows = con.execute(f"select distinct id from exploits where type in ({marks})", wild)
+        return {r[0].upper() for r in rows if r[0] and CVE_RE.match(r[0])}
+    finally:
+        con.close()

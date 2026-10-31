@@ -11,6 +11,7 @@ Implementation of "Vulnerability Weightage and Prioritization Model" (COMPSAC 20
 | vulnscore.py | The scoring model (weights, CVSS sub-scores, final score, ranking). Also ranks a ready-made CSV. |
 | fetchers.py | NVD, EPSS, CISA KEV and inthewild.io data collection |
 | mitre.py | CWE -> CAPEC -> ATT&CK -> adversary count |
+| inspect_itw.py | Shows the layout of inthewild.db |
 | pipeline.py | Runs everything for a list of CVEs |
 
 Score is 0-100 raw, shown as raw / 10 like the paper's case study.

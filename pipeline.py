@@ -11,9 +11,10 @@ from __future__ import annotations
 
 import argparse
 import csv
+import os
 import sys
 
-from fetchers import fetch_epss, fetch_nvd, load_inthewild, load_kev
+from fetchers import fetch_epss, fetch_nvd, load_inthewild, load_inthewild_db, load_inthewild_file, load_kev
 from mitre import ALL_KINDS, GROUPS_ONLY, AdversaryMapper
 from vulnscore import WEIGHTS, Vulnerability, prioritize
 
@@ -43,6 +44,9 @@ def main(argv=None) -> int:
     ap.add_argument("--file", help="text file with one CVE id per line")
     ap.add_argument("-o", "--out", help="write ranked results to CSV")
     ap.add_argument("--cache", default="mitre_cache", help="folder for MITRE data")
+    ap.add_argument("--itw-db", help="inthewild.db file (default: ./inthewild.db if present)")
+    ap.add_argument("--itw-file", help="local file of exploited CVEs (JSON export or one id per line) "
+                    "instead of downloading from inthewild.io")
     ap.add_argument("--nvd-key", help="NVD API key (much faster)")
     ap.add_argument("--all-adversary-kinds", action="store_true",
                     help="count software and campaigns as adversaries, not just groups")
@@ -50,7 +54,7 @@ def main(argv=None) -> int:
 
     ids = list(args.cves)
     if args.file:
-        with open(args.file) as f:
+        with open(args.file, encoding="utf-8") as f:
             ids += [ln.strip() for ln in f if ln.strip() and not ln.startswith("#")]
     if not ids:
         ap.error("give at least one CVE id")
@@ -59,7 +63,14 @@ def main(argv=None) -> int:
     kev = load_kev()
     print("Loading inthewild.io list...", file=sys.stderr)
     try:
-        itw = load_inthewild()
+        db = args.itw_db or ("inthewild.db" if os.path.exists("inthewild.db") else None)
+        if db:
+            itw = load_inthewild_db(db)
+            print(f"  {len(itw)} CVEs reported as exploited (from {db})", file=sys.stderr)
+        elif args.itw_file:
+            itw = load_inthewild_file(args.itw_file)
+        else:
+            itw = load_inthewild()
     except Exception as e:  # keep going, but say so clearly
         print(f"WARNING: inthewild.io failed ({e}); 'exploited in the wild' set to 0 for all.",
               file=sys.stderr)
@@ -86,7 +97,7 @@ def main(argv=None) -> int:
         print(f"{n:<5}{r.cve_id:<18}{r.score:<8.2f}{base if base is not None else '-':<6}")
 
     if args.out:
-        with open(args.out, "w", newline="") as f:
+        with open(args.out, "w", newline="", encoding="utf-8") as f:
             w = csv.writer(f)
             w.writerow(["rank", "cve_id", "score", "raw", "cvss_base", "cvss_vector",
                         "n_cpe", "n_cwe", "n_adversaries", "epss", "epss_percentile",

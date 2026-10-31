@@ -83,7 +83,7 @@ class AdversaryMapper:
         return cls(capec, attack, kinds)
 
     def _load_capec(self, path: str) -> None:
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             data = json.load(f)
         for o in data["objects"]:
             if o.get("type") != "attack-pattern" or _inactive(o):
@@ -98,7 +98,7 @@ class AdversaryMapper:
                 self.capec_to_tech[capec].add(_norm_technique(t))
 
     def _load_attack(self, path: str) -> None:
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             data = json.load(f)
         objs = data["objects"]
         tech_id: dict[str, str] = {}
