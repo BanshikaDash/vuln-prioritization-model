@@ -41,7 +41,11 @@ def parse_nvd(payload: dict, cve_id: str) -> dict:
     items = payload.get("vulnerabilities", [])
     if not items:
         raise LookupError(f"{cve_id} not found in NVD")
-    cve = items[0]["cve"]
+    return parse_cve(items[0]["cve"])
+
+
+def parse_cve(cve: dict) -> dict:
+    """Pull what the model needs out of one NVD CVE record."""
 
     vector = base = None
     for key in ("cvssMetricV31", "cvssMetricV30"):
@@ -71,6 +75,8 @@ def parse_nvd(payload: dict, cve_id: str) -> dict:
         for r in cve.get("references", [])
     )
     return {
+        "cve_id": cve.get("id"),
+        "published": cve.get("published"),
         "cvss_vector": vector,
         "cvss_base": base,
         "n_cpe": len(cpes),
@@ -185,12 +191,63 @@ def load_inthewild_db(path: str) -> set[str]:
         raise FileNotFoundError(path)
     con = sqlite3.connect(path)
     try:
-        types = [r[0] for r in con.execute("select distinct type from exploits")]
-        wild = [t for t in types if t and ("exploitation" in t.lower() or "wild" in t.lower())]
-        if not wild:
-            raise RuntimeError(f"no 'exploitation' type in {path}; types found: {types}")
+        wild = _wild_types(con, path)
         marks = ",".join("?" * len(wild))
         rows = con.execute(f"select distinct id from exploits where type in ({marks})", wild)
         return {r[0].upper() for r in rows if r[0] and CVE_RE.match(r[0])}
+    finally:
+        con.close()
+
+
+def _wild_types(con, path: str) -> list[str]:
+    types = [r[0] for r in con.execute("select distinct type from exploits")]
+    wild = [t for t in types if t and ("exploitation" in t.lower() or "wild" in t.lower())]
+    if not wild:
+        raise RuntimeError(f"no 'exploitation' type in {path}; types found: {types}")
+    return wild
+
+
+def parse_kev_dates(payload: dict) -> dict[str, str]:
+    """CVE id -> date it was added to KEV (YYYY-MM-DD)."""
+    return {v["cveID"].upper(): v["dateAdded"] for v in payload["vulnerabilities"]}
+
+
+def load_kev_dates() -> dict[str, str]:
+    for url in (KEV_URL, KEV_MIRROR):
+        try:
+            r = requests.get(url, timeout=60, headers={"User-Agent": "vulnscore/1.0"})
+            r.raise_for_status()
+            return parse_kev_dates(r.json())
+        except (requests.RequestException, ValueError):
+            continue
+    raise RuntimeError("Could not download the CISA KEV list")
+
+
+def load_inthewild_timeline(path: str, before: str) -> tuple[dict[str, str], dict[str, int]]:
+    """From inthewild.db, return two things:
+      first_exploitation: CVE id -> date (YYYY-MM-DD) of its earliest exploitation report
+      exploit_counts:     CVE id -> number of public-exploit rows dated before `before`
+    """
+    if not os.path.exists(path):
+        raise FileNotFoundError(path)
+    con = sqlite3.connect(path)
+    try:
+        wild = _wild_types(con, path)
+        marks = ",".join("?" * len(wild))
+        first = {
+            r[0].upper(): r[1][:10]
+            for r in con.execute(
+                f"select id, min(timeStamp) from exploits where type in ({marks}) "
+                "and timeStamp is not null group by id", wild)
+            if r[0] and r[1] and CVE_RE.match(r[0])
+        }
+        counts = {
+            r[0].upper(): r[1]
+            for r in con.execute(
+                "select id, count(*) from exploits where type = 'exploit' "
+                "and timeStamp < ? group by id", (before,))
+            if r[0] and CVE_RE.match(r[0])
+        }
+        return first, counts
     finally:
         con.close()

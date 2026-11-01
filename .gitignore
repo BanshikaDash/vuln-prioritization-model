@@ -4,3 +4,4 @@ __pycache__/
 mitre_cache/
 *.csv
 *.db
+data_cache/
