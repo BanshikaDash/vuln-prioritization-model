@@ -179,3 +179,10 @@ def test_send_without_email_settings_fails_clearly(run_env, monkeypatch):
     monkeypatch.delenv("SMTP_HOST")
     with pytest.raises(RuntimeError, match="SMTP_HOST"):
         al.main(args + ["--send"])
+
+
+def test_tiny_percentages_are_not_shown_as_zero():
+    assert al.pct_text(0.01) == "<0.1%" and al.pct_text(0.3) == "0.3%" and al.pct_text(4.96) == "5.0%"
+    a = mk("CVE-X", "HIGH")
+    a.top_pct = 0.01
+    assert "top <0.1%" in al._fmt_risk(a)

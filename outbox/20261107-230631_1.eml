@@ -1,0 +1,42 @@
+Subject: [CRITICAL] CVE-2021-44228: exploitation confirmed, act now
+From: alerts@example.com
+To: security-team@example.com
+Date: Sat, 07 Nov 2026 23:06:31 +0530
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+ boundary="===============6586120962772008345=="
+
+--===============6586120962772008345==
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+
+Priority: CRITICAL
+CVE: CVE-2021-44228
+Published: 2021-12-10
+Predicted risk: top 0.0%
+
+Why:
+  - Listed in the CISA KEV catalog: exploitation is confirmed.
+  - Reported as exploited in the wild (inthewild.io).
+  - Predicted exploitation risk is in the top 0.0% of CVEs.
+  - EPSS 1.000 (100th percentile).
+  - 213 exploit-tagged public reference(s).
+  - Weakness type is linked to 49 ATT&CK group(s).
+  - CVSS base score 10.0.
+
+Details: https://nvd.nist.gov/vuln/detail/CVE-2021-44228
+
+--===============6586120962772008345==
+Content-Type: text/html; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+
+<h2>[CRITICAL] <a href=3D'https://nvd.nist.gov/vuln/detail/CVE-2021-44228'>CV=
+E-2021-44228</a></h2><p>Published 2021-12-10. Predicted risk: top 0.0%.</p><u=
+l><li>Listed in the CISA KEV catalog: exploitation is confirmed.</li><li>Repo=
+rted as exploited in the wild (inthewild.io).</li><li>Predicted exploitation =
+risk is in the top 0.0% of CVEs.</li><li>EPSS 1.000 (100th percentile).</li><=
+li>213 exploit-tagged public reference(s).</li><li>Weakness type is linked to=
+ 49 ATT&amp;CK group(s).</li><li>CVSS base score 10.0.</li></ul>
+
+--===============6586120962772008345==--

@@ -1,0 +1,35 @@
+Subject: [HIGH] Vulnerability digest 2026-11-07: 1 high
+From: alerts@example.com
+To: security-team@example.com
+Date: Sat, 07 Nov 2026 23:06:31 +0530
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+ boundary="===============7073478700794231789=="
+
+--===============7073478700794231789==
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+
+Vulnerability digest 2026-11-07: 1 high
+
+[HIGH] CVE-2014-3566  risk top 0.1%  EPSS 1.000  CVSS 3.4
+  https://nvd.nist.gov/vuln/detail/CVE-2014-3566
+  - Predicted exploitation risk is in the top 0.1% of CVEs.
+  - EPSS 1.000 (100th percentile).
+  - 4 exploit-tagged public reference(s).
+  - CVSS base score 3.4.
+
+--===============7073478700794231789==
+Content-Type: text/html; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+
+<table border=3D'1' cellpadding=3D'4' cellspacing=3D'0'><tr><th>Level</th><th=
+>CVE</th><th>Predicted risk</th><th>EPSS</th><th>CVSS</th><th>Why</th></tr><t=
+r><td><b>HIGH</b></td><td><a href=3D'https://nvd.nist.gov/vuln/detail/CVE-201=
+4-3566'>CVE-2014-3566</a></td><td>top 0.1%</td><td>1.000</td><td>3.4</td><td>=
+Predicted exploitation risk is in the top 0.1% of CVEs.; EPSS 1.000 (100th pe=
+rcentile).; 4 exploit-tagged public reference(s).; CVSS base score 3.4.</td><=
+/tr></table>
+
+--===============7073478700794231789==--

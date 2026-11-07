@@ -87,6 +87,10 @@ def top_percent(score: float, quantiles) -> float:
     return max(0.01, 100 * (1 - below))
 
 
+def pct_text(p: float) -> str:
+    return "<0.1%" if p < 0.1 else f"{p:.1f}%"
+
+
 def classify(in_kev: bool, exploited: bool, score: Optional[float], thr: dict) -> Optional[str]:
     if in_kev or exploited:
         return "CRITICAL"
@@ -124,7 +128,7 @@ def explain(a: Alert) -> list[str]:
     if a.exploited_in_wild:
         r.append("Reported as exploited in the wild (inthewild.io).")
     if a.top_pct is not None:
-        r.append(f"Predicted exploitation risk is in the top {a.top_pct:.1f}% of CVEs.")
+        r.append(f"Predicted exploitation risk is in the top {pct_text(a.top_pct)} of CVEs.")
     r.append(f"EPSS {a.epss:.3f} ({a.epss_percentile * 100:.0f}th percentile).")
     if a.n_public_exploits:
         r.append(f"{a.n_public_exploits} exploit-tagged public reference(s).")
@@ -216,7 +220,7 @@ def _nvd_link(cve_id: str) -> str:
 
 
 def _fmt_risk(a: Alert) -> str:
-    return f"top {a.top_pct:.1f}%" if a.top_pct is not None else "not scored"
+    return f"top {pct_text(a.top_pct)}" if a.top_pct is not None else "not scored"
 
 
 def _new_message(subject, sender, recipients, text, html_body) -> EmailMessage:
