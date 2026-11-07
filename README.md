@@ -12,14 +12,17 @@ Implementation of "Vulnerability Weightage and Prioritization Model" (COMPSAC 20
 | fetchers.py | NVD, EPSS, CISA KEV and inthewild.io data collection |
 | mitre.py | CWE -> CAPEC -> ATT&CK -> adversary count |
 | inspect_itw.py | Shows the layout of inthewild.db |
+| alerts.py | Email alert system: priority levels, subject-line flags, dry-run and send |
 | pipeline.py | Runs everything for a list of CVEs |
 
 Score is 0-100 raw, shown as raw / 10 like the paper's case study.
 First run downloads about 60 MB of MITRE data into `mitre_cache/`.
-## Assumptions (where the paper is unclear)
-- Adversaries = ATT&CK groups reached via CWE -> CAPEC -> ATT&CK (software and campaigns optional).
-- CPE count = unique vulnerable CPEs listed by NVD.
-- ZDI flag = NVD links to a Zero Day Initiative advisory.
-- Exploited in the wild = "exploitation" reports in inthewild.db.
-- CVSS sub-scores are divided by 10 as the paper states, so exploitability tops out near 0.39.
-- CVE-2014-3566 scores about 1 point below the paper: its weakness (CWE-310) has no ATT&CK link in MITRE's data.
+
+## Email alerts
+    python alerts.py CVE-2023-25717 CVE-2014-3566          # dry run, writes outbox/*.eml
+    python alerts.py --recent-days 7 --min-level MEDIUM --send
+
+Levels: CRITICAL (in KEV or exploited in the wild, one email each), HIGH (top 1% by
+learned score), MEDIUM (top 5%), LOW (no email). A CVE is emailed only when new or
+when its level goes up. Needs models/ from `python train_model.py --save-dir models`
+and inthewild.db in the project folder.

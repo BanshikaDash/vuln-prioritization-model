@@ -41,19 +41,25 @@ def load(path: str):
     """Returns (rows, X, y). X columns follow feature_names()."""
     with open(path, newline="", encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
-    X = np.zeros((len(rows), len(feature_names())))
-    for r, row in enumerate(rows):
-        c = 0
-        for col in NUMERIC:
-            v = float(row.get(col) or 0)
-            X[r, c] = np.log1p(v) if col in LOG1P else v
-            c += 1
-        for col, vals in CATEGORICAL.items():
-            for v in vals:
-                X[r, c] = 1.0 if row.get(col) == v else 0.0
-                c += 1
+    X = np.array([row_to_vector(r) for r in rows]) if rows else np.zeros((0, len(feature_names())))
     y = np.array([int(r["label"]) for r in rows])
     return rows, X, y
+
+
+def row_to_vector(row) -> np.ndarray:
+    """One dataset row (dict) -> model input vector, in feature_names() order.
+    Also used by alerts.py to score a live CVE."""
+    x = np.zeros(len(feature_names()))
+    c = 0
+    for col in NUMERIC:
+        v = float(row.get(col) or 0)
+        x[c] = np.log1p(v) if col in LOG1P else v
+        c += 1
+    for col, vals in CATEGORICAL.items():
+        for v in vals:
+            x[c] = 1.0 if row.get(col) == v else 0.0
+            c += 1
+    return x
 
 
 # ---- metrics (numpy, fast enough for bootstrapping) ---------------------------

@@ -1,0 +1,42 @@
+Subject: [CRITICAL] CVE-2023-25717: exploitation confirmed, act now
+From: alerts@example.com
+To: security-team@example.com
+Date: Sat, 07 Nov 2026 23:01:20 +0530
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+ boundary="===============2362065967815108545=="
+
+--===============2362065967815108545==
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+
+Priority: CRITICAL
+CVE: CVE-2023-25717
+Published: 2023-02-13
+Predicted risk: top 0.3%
+
+Why:
+  - Listed in the CISA KEV catalog: exploitation is confirmed.
+  - Reported as exploited in the wild (inthewild.io).
+  - Predicted exploitation risk is in the top 0.3% of CVEs.
+  - EPSS 0.981 (100th percentile).
+  - 1 exploit-tagged public reference(s).
+  - Weakness type is linked to 4 ATT&CK group(s).
+  - CVSS base score 9.8.
+
+Details: https://nvd.nist.gov/vuln/detail/CVE-2023-25717
+
+--===============2362065967815108545==
+Content-Type: text/html; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+
+<h2>[CRITICAL] <a href=3D'https://nvd.nist.gov/vuln/detail/CVE-2023-25717'>CV=
+E-2023-25717</a></h2><p>Published 2023-02-13. Predicted risk: top 0.3%.</p><u=
+l><li>Listed in the CISA KEV catalog: exploitation is confirmed.</li><li>Repo=
+rted as exploited in the wild (inthewild.io).</li><li>Predicted exploitation =
+risk is in the top 0.3% of CVEs.</li><li>EPSS 0.981 (100th percentile).</li><=
+li>1 exploit-tagged public reference(s).</li><li>Weakness type is linked to 4=
+ ATT&amp;CK group(s).</li><li>CVSS base score 9.8.</li></ul>
+
+--===============2362065967815108545==--
