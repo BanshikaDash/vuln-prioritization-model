@@ -41,11 +41,12 @@ def parse_nvd(payload: dict, cve_id: str) -> dict:
     items = payload.get("vulnerabilities", [])
     if not items:
         raise LookupError(f"{cve_id} not found in NVD")
-    return parse_cve(items[0]["cve"])
+    return parse_cve(items[0]["cve"], with_text=True)
 
 
-def parse_cve(cve: dict) -> dict:
-    """Pull what the model needs out of one NVD CVE record."""
+def parse_cve(cve: dict, with_text: bool = False) -> dict:
+    """Pull what the model needs out of one NVD CVE record.
+    with_text also keeps the English description and vendor:product names."""
 
     vector = base = None
     for key in ("cvssMetricV31", "cvssMetricV30"):
@@ -74,7 +75,7 @@ def parse_cve(cve: dict) -> dict:
         "zerodayinitiative.com" in r.get("url", "").lower()
         for r in cve.get("references", [])
     )
-    return {
+    out = {
         "cve_id": cve.get("id"),
         "published": cve.get("published"),
         "cvss_vector": vector,
@@ -83,6 +84,11 @@ def parse_cve(cve: dict) -> dict:
         "cwes": sorted(cwes),
         "in_zdi": in_zdi,
     }
+    if with_text:
+        out["description"] = next(
+            (d.get("value", "") for d in cve.get("descriptions", []) if d.get("lang") == "en"), "")
+        out["products"] = sorted({":".join(c.split(":")[3:5]) for c in cpes if c.count(":") >= 4})[:10]
+    return out
 
 
 def fetch_nvd(cve_id: str, api_key: Optional[str] = None) -> dict:

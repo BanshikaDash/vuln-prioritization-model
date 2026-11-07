@@ -43,6 +43,7 @@ from typing import Optional
 import numpy as np
 import requests
 
+import genai_module as gm
 import train_model as tm
 from build_dataset import fetch_window
 from fetchers import EPSS_URL, fetch_nvd, load_inthewild_timeline, load_kev
@@ -119,6 +120,10 @@ class Alert:
     n_public_exploits: int
     n_adversaries: int
     reasons: list = field(default_factory=list)
+    description: str = ""
+    products: list = field(default_factory=list)
+    cwes: list = field(default_factory=list)
+    recommendation: Optional[dict] = None
 
 
 def explain(a: Alert) -> list[str]:
@@ -170,7 +175,8 @@ def assess(rec: dict, epss: tuple, kev: set, itw_first: dict, exploit_counts: di
     if level is None:
         return None
     a = Alert(cid, level, score, top, published, rec.get("cvss_base"), e_score, e_pct,
-              in_kev, exploited, n_pub, n_adv)
+              in_kev, exploited, n_pub, n_adv, description=rec.get("description", ""),
+              products=rec.get("products", []), cwes=rec.get("cwes", []))
     a.reasons = explain(a)
     return a
 
@@ -232,14 +238,36 @@ def _new_message(subject, sender, recipients, text, html_body) -> EmailMessage:
     return m
 
 
+def _rec_label(a: Alert) -> str:
+    return ("AI-generated, verify before acting" if a.recommendation["source"] == "gemini"
+            else "standard guidance")
+
+
+def _rec_text(a: Alert) -> str:
+    if not a.recommendation:
+        return ""
+    r = a.recommendation
+    return (f"\nSuggested actions ({_rec_label(a)}):\n  {r['summary']}\n"
+            + "\n".join(f"  - {x}" for x in r["actions"]) + "\n")
+
+
+def _rec_html(a: Alert) -> str:
+    if not a.recommendation:
+        return ""
+    r = a.recommendation
+    return (f"<p><b>Suggested actions</b> <i>({_rec_label(a)})</i><br>{html.escape(r['summary'])}</p><ul>"
+            + "".join(f"<li>{html.escape(x)}</li>" for x in r["actions"]) + "</ul>")
+
+
 def single_email(a: Alert, sender, recipients) -> EmailMessage:
     subject = f"[{a.level}] {a.cve_id}: exploitation confirmed, act now"
     text = (f"Priority: {a.level}\nCVE: {a.cve_id}\nPublished: {a.published}\n"
             f"Predicted risk: {_fmt_risk(a)}\n\nWhy:\n"
-            + "\n".join(f"  - {r}" for r in a.reasons) + f"\n\nDetails: {_nvd_link(a.cve_id)}\n")
+            + "\n".join(f"  - {r}" for r in a.reasons) + "\n" + _rec_text(a)
+            + f"\nDetails: {_nvd_link(a.cve_id)}\n")
     body = (f"<h2>[{a.level}] <a href='{_nvd_link(a.cve_id)}'>{a.cve_id}</a></h2>"
             f"<p>Published {html.escape(a.published)}. Predicted risk: {html.escape(_fmt_risk(a))}.</p><ul>"
-            + "".join(f"<li>{html.escape(r)}</li>" for r in a.reasons) + "</ul>")
+            + "".join(f"<li>{html.escape(r)}</li>" for r in a.reasons) + "</ul>" + _rec_html(a))
     return _new_message(subject, sender, recipients, text, body)
 
 
@@ -253,13 +281,13 @@ def digest_email(alerts: list[Alert], sender, recipients, today: date) -> EmailM
     for a in alerts:
         text_parts.append(f"[{a.level}] {a.cve_id}  risk {_fmt_risk(a)}  EPSS {a.epss:.3f}  "
                           f"CVSS {a.cvss_base}\n  {_nvd_link(a.cve_id)}\n"
-                          + "\n".join(f"  - {r}" for r in a.reasons) + "\n")
+                          + "\n".join(f"  - {r}" for r in a.reasons) + "\n" + _rec_text(a))
         html_rows.append(
             f"<tr><td><b>{a.level}</b></td><td><a href='{_nvd_link(a.cve_id)}'>{a.cve_id}</a></td>"
             f"<td>{html.escape(_fmt_risk(a))}</td><td>{a.epss:.3f}</td><td>{a.cvss_base}</td>"
-            f"<td>{html.escape('; '.join(a.reasons))}</td></tr>")
+            f"<td>{html.escape('; '.join(a.reasons))}</td><td>{_rec_html(a)}</td></tr>")
     body = ("<table border='1' cellpadding='4' cellspacing='0'><tr><th>Level</th><th>CVE</th>"
-            "<th>Predicted risk</th><th>EPSS</th><th>CVSS</th><th>Why</th></tr>"
+            "<th>Predicted risk</th><th>EPSS</th><th>CVSS</th><th>Why</th><th>Suggested actions</th></tr>"
             + "".join(html_rows) + "</table>")
     return _new_message(subject, sender, recipients, "\n".join(text_parts), body)
 
@@ -324,6 +352,11 @@ def main(argv=None) -> int:
     ap.add_argument("--state", default="alert_state.json")
     ap.add_argument("--outbox", default="outbox")
     ap.add_argument("--nvd-key")
+    ap.add_argument("--genai", default="auto", choices=["auto", "gemini", "template", "off"],
+                    help="suggested actions: auto = Gemini if GEMINI_API_KEY is set, else standard guidance")
+    ap.add_argument("--genai-model", default=os.environ.get("GEMINI_MODEL", gm.DEFAULT_MODEL))
+    ap.add_argument("--genai-delay", type=float, default=7.0, help="seconds between Gemini calls (free-tier limits)")
+    ap.add_argument("--proposals", default="proposals.json", help="where system-change proposals are saved")
     args = ap.parse_args(argv)
 
     ids = [c.upper() for c in args.cves]
@@ -353,7 +386,7 @@ def main(argv=None) -> int:
     if args.recent_days:
         log(f"Fetching CVEs published in the last {args.recent_days} days...")
         delay = 0.7 if args.nvd_key else 6.5
-        for r in fetch_window(today - timedelta(days=args.recent_days), today + timedelta(days=1), args.nvd_key, delay):
+        for r in fetch_window(today - timedelta(days=args.recent_days), today + timedelta(days=1), args.nvd_key, delay, with_text=True):
             records[r["cve_id"].upper()] = r
     for cid in ids:
         if cid in records:
@@ -387,6 +420,19 @@ def main(argv=None) -> int:
     print(f"\n{len(candidates)} CVE(s) at {args.min_level} or above, {len(to_send)} new or escalated.")
     if not to_send:
         return 0
+
+    if args.genai != "off":
+        key = os.environ.get("GEMINI_API_KEY")
+        provider = gm.resolve_provider(args.genai, key)
+        n = gm.recommend(to_send, provider, key, args.genai_model, delay=args.genai_delay, log=log)
+        print(f"Suggested actions: {n['gemini']} AI-generated, {n['template']} standard guidance.")
+        stats = {"checked": len(records), "unscored": unscored,
+                 "levels": {lv: sum(a.level == lv for a in alerts) for lv in LEVELS},
+                 "new_or_escalated": len(to_send),
+                 "high_top_pct": 100 * TOP_FRACTION["high"], "medium_top_pct": 100 * TOP_FRACTION["medium"]}
+        added = gm.save_proposals(args.proposals, gm.propose_changes(stats, provider, key, args.genai_model, log=log))
+        for p in added:
+            print(f"  proposal {p['id']} ({'major' if p['major'] else 'minor'}, pending approval): {p['summary']}")
 
     sender = cfg["ALERT_FROM"] if cfg else "alerts@example.com"
     recipients = cfg["recipients"] if cfg else ["security-team@example.com"]

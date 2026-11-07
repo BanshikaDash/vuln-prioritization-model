@@ -13,6 +13,7 @@ Implementation of "Vulnerability Weightage and Prioritization Model" (COMPSAC 20
 | mitre.py | CWE -> CAPEC -> ATT&CK -> adversary count |
 | inspect_itw.py | Shows the layout of inthewild.db |
 | alerts.py | Email alert system: priority levels, subject-line flags, dry-run and send |
+| genai_module.py | Suggested fixes and system-change proposals (free Gemini tier, template fallback) |
 | pipeline.py | Runs everything for a list of CVEs |
 
 Score is 0-100 raw, shown as raw / 10 like the paper's case study.
@@ -26,3 +27,14 @@ Levels: CRITICAL (in KEV or exploited in the wild, one email each), HIGH (top 1%
 learned score), MEDIUM (top 5%), LOW (no email). A CVE is emailed only when new or
 when its level goes up. Needs models/ from `python train_model.py --save-dir models`
 and inthewild.db in the project folder.
+
+## GenAI suggestions (free tier)
+    1. Get a free key at https://aistudio.google.com/app/apikey
+    2. $env:GEMINI_API_KEY="your-key"
+    3. python genai_module.py --test            # checks key and model
+       python genai_module.py --list-models     # if the default model is rejected
+       $env:GEMINI_MODEL="name-from-the-list"
+
+`alerts.py` then adds "Suggested actions" to each email (labelled AI-generated, or
+"standard guidance" without a key). System-change proposals are saved to
+proposals.json as pending, for the supervisor to approve (next stage).

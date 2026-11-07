@@ -70,7 +70,7 @@ def _get_json(url, params, headers, retries=5):
             time.sleep(10 * attempt)
 
 
-def fetch_window(s: date, e: date, api_key=None, delay=6.5) -> list[dict]:
+def fetch_window(s: date, e: date, api_key=None, delay=6.5, with_text=False) -> list[dict]:
     headers = {"apiKey": api_key} if api_key else {}
     params = {
         "pubStartDate": f"{s.isoformat()}T00:00:00.000",
@@ -81,7 +81,7 @@ def fetch_window(s: date, e: date, api_key=None, delay=6.5) -> list[dict]:
     while True:
         payload = _get_json(NVD_URL, {**params, "startIndex": idx}, headers)
         items = payload.get("vulnerabilities", [])
-        out += [parse_cve(i["cve"]) for i in items]
+        out += [parse_cve(i["cve"], with_text) for i in items]
         idx += len(items)
         time.sleep(delay)
         if not items or idx >= payload.get("totalResults", 0):

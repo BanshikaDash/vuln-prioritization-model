@@ -150,7 +150,8 @@ def run_env(monkeypatch, models_dir, tmp_path):
     monkeypatch.setenv("ALERT_TO", "a@test, b@test")
     args = ["CVE-2026-0100", "CVE-2026-0200", "--models-dir", models_dir,
             "--state", str(tmp_path / "state.json"), "--outbox", str(tmp_path / "out"),
-            "--itw-db", "x.db", "--min-level", "LOW"]
+            "--itw-db", "x.db", "--min-level", "LOW",
+            "--proposals", str(tmp_path / "proposals.json")]
     return args, sent, tmp_path
 
 
